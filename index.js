@@ -104,6 +104,7 @@ client.on("messageCreate", async (message) => {
       channelId = message.channel.id; // Set the parent channel ID to the current channel ID
     }
 
+    await thread.sendTyping(); // https://discord.com/developers/docs/resources/channel#trigger-typing-indicator
     threadToChannelMap.set(threadId, channelId); // Add the thread-to-channel mapping
 
     let history = historyMap.get(threadId) || []; // Use thread ID to look up history instead of channel ID
