@@ -146,14 +146,14 @@ client.on("messageCreate", async (message) => {
     historyMap.set(threadId, history); // Use thread ID to store history instead of channel ID
 
     // 2000 is discords current message limit
-    const answersParts = splitInto(answer, 2000);
+    const answerParts = splitInto(answer, 2000);
 
-    const firstMessage = `${message.author}\n\n${answersParts[0]}`;
+    const firstMessage = `${message.author}\n\n${answerParts[0]}`;
     if (message.channel.isThread()) await message.reply(firstMessage);
     else await thread.send(firstMessage);
 
-    for (let i = 1; i < answersParts.length; i++)
-      await thread.send(answersParts[i]);
+    for (let i = 1; i < answerParts.length; i++)
+      await thread.send(answerParts[i]);
 
     if (sources) {
       await thread.send(`\n\nVerified Sources:\n- ${sources.join("\n- ")}`);
