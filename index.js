@@ -5,7 +5,7 @@ require("dotenv").config();
 // Secrets
 const MENDABLE_KEY = process.env["MENDABLE_API_KEY"];
 const DISCORD_TOKEN = process.env["DISCORD_TOKEN"];
-const BOT_ID = process.env["BOT_ID"]; // 
+const BOT_ID = process.env["BOT_ID"]; //
 
 const client = new Client({
   intents: [
@@ -18,6 +18,23 @@ const client = new Client({
 const historyMap = new Map();
 const threadToChannelMap = new Map();
 
+function splitInto(str, maxChunkLen) {
+  const parts = [];
+  let tempPart = "";
+  let i = 0;
+
+  const splittedStr = str.split("\n");
+
+  while (i < splittedStr.length) {
+    while (tempPart.length + splittedStr[i].length <= maxChunkLen - 1) {
+      tempPart += splittedStr[i++] + "\n";
+      if (i === splittedStr.length) break;
+    }
+    parts.push(tempPart);
+    tempPart = "";
+  }
+  return parts;
+}
 
 async function createConversation() {
   const url = "https://api.mendable.ai/v0/newConversation";
@@ -58,9 +75,7 @@ async function getAnswerAndSources(question, history = []) {
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 
@@ -107,6 +122,7 @@ client.on("messageCreate", async (message) => {
       channelId = message.channel.id; // Set the parent channel ID to the current channel ID
     }
 
+    await thread.sendTyping(); // https://discord.com/developers/docs/resources/channel#trigger-typing-indicator
     threadToChannelMap.set(threadId, channelId); // Add the thread-to-channel mapping
 
     let history = historyMap.get(threadId) || []; // Use thread ID to look up history instead of channel ID
@@ -118,9 +134,9 @@ client.on("messageCreate", async (message) => {
     const responseJSON = await response.json();
 
     const answer = await responseJSON["answer"]["text"];
-    const sources = await responseJSON["sources"]
-      .map((source) => source["link"])
-      .join("\n");
+    const sources = await responseJSON["sources"].map(
+      (source) => source["link"]
+    );
 
     history.push({
       prompt: formattedMessage.trim(),
@@ -129,18 +145,18 @@ client.on("messageCreate", async (message) => {
     });
     historyMap.set(threadId, history); // Use thread ID to store history instead of channel ID
 
-    if (message.channel.isThread()) {
-      await message.reply(
-        `${message.author}\n\n${answer}`
-      );
-      if (sources) {
-        await message.reply(`Sources:\n${sources}`);
-      }
-    } else {
-      await thread.send(`${message.author}\n\n${answer}\n`);
-      if (sources) {
-        await thread.send(`\n\n- Verified Sources:\n${sources}`);
-      }
+    // 2000 is discords current message limit
+    const answerParts = splitInto(answer, 2000);
+
+    const firstMessage = `${message.author}\n\n${answerParts[0]}`;
+    if (message.channel.isThread()) await message.reply(firstMessage);
+    else await thread.send(firstMessage);
+
+    for (let i = 1; i < answerParts.length; i++)
+      await thread.send(answerParts[i]);
+
+    if (sources) {
+      await thread.send(`\n\nVerified Sources:\n- ${sources.join("\n- ")}`);
     }
   } catch (error) {
     console.log(error);
