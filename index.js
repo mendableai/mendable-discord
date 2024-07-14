@@ -18,6 +18,24 @@ const client = new Client({
 const historyMap = new Map();
 const threadToChannelMap = new Map();
 
+function splitInto(str, maxChunkLen) {
+  const parts = [];
+  let tempPart = "";
+  let i = 0;
+
+  const splittedStr = str.split("\n");
+
+  while (i < splittedStr.length) {
+    while (tempPart.length + splittedStr[i].length <= maxChunkLen - 1) {
+      tempPart += splittedStr[i++] + "\n";
+      if (i === splittedStr.length) break;
+    }
+    parts.push(tempPart);
+    tempPart = "";
+  }
+  return parts;
+}
+
 async function createConversation() {
   const url = "https://api.mendable.ai/v0/newConversation";
 
@@ -127,28 +145,15 @@ client.on("messageCreate", async (message) => {
     });
     historyMap.set(threadId, history); // Use thread ID to store history instead of channel ID
 
-    const answersList = [];
-    let tempString = "";
-    let answerIndex = 0;
+    // 2000 is discords current message limit
+    const answersParts = splitInto(answer, 2000);
 
-    const splittedAnswers = answer.split("\n");
-
-    while (answerIndex < splittedAnswers.length) {
-      // update 1999 to (n-1) where n is discords per message limit
-      while (tempString.length + splittedAnswers[answerIndex].length <= 1999) {
-        tempString += splittedAnswers[answerIndex++] + "\n";
-        if (answerIndex === splittedAnswers.length) break;
-      }
-      answersList.push(tempString);
-      tempString = "";
-    }
-
-    const firstMessage = `${message.author}\n\n${answersList[0]}`;
+    const firstMessage = `${message.author}\n\n${answersParts[0]}`;
     if (message.channel.isThread()) await message.reply(firstMessage);
     else await thread.send(firstMessage);
 
-    for (let i = 1; i < answersList.length; i++)
-      await thread.send(answersList[i]);
+    for (let i = 1; i < answersParts.length; i++)
+      await thread.send(answersParts[i]);
 
     if (sources) {
       await thread.send(`\n\nVerified Sources:\n- ${sources.join("\n- ")}`);
