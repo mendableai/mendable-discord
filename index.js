@@ -5,7 +5,7 @@ require("dotenv").config();
 // Secrets
 const MENDABLE_KEY = process.env["MENDABLE_API_KEY"];
 const DISCORD_TOKEN = process.env["DISCORD_TOKEN"];
-const BOT_ID = process.env["BOT_ID"]; // 
+const BOT_ID = process.env["BOT_ID"]; //
 
 const client = new Client({
   intents: [
@@ -18,9 +18,8 @@ const client = new Client({
 const historyMap = new Map();
 const threadToChannelMap = new Map();
 
-
 async function createConversation() {
-  const url = "https://api.mendable.ai/v0/newConversation";
+  const url = "https://api.mendable.ai/v1/newConversation";
 
   const data = {
     api_key: `${MENDABLE_KEY}`,
@@ -39,7 +38,7 @@ async function createConversation() {
 }
 
 async function getAnswerAndSources(question, history = []) {
-  const url = "https://api.mendable.ai/v0/mendableChat";
+  const url = "https://api.mendable.ai/v1/mendableChat";
   let conversation_id = null;
   if (history.length === 0) {
     conversation_id = await createConversation();
@@ -130,9 +129,7 @@ client.on("messageCreate", async (message) => {
     historyMap.set(threadId, history); // Use thread ID to store history instead of channel ID
 
     if (message.channel.isThread()) {
-      await message.reply(
-        `${message.author}\n\n${answer}`
-      );
+      await message.reply(`${message.author}\n\n${answer}`);
       if (sources) {
         await message.reply(`Sources:\n${sources}`);
       }
