@@ -5,7 +5,7 @@ require("dotenv").config();
 // Secrets
 const MENDABLE_KEY = process.env["MENDABLE_API_KEY"];
 const DISCORD_TOKEN = process.env["DISCORD_TOKEN"];
-const BOT_ID = process.env["BOT_ID"]; // 
+const BOT_ID = process.env["BOT_ID"]; //
 
 const client = new Client({
   intents: [
@@ -17,7 +17,6 @@ const client = new Client({
 
 const historyMap = new Map();
 const threadToChannelMap = new Map();
-
 
 async function createConversation() {
   const url = "https://api.mendable.ai/v0/newConversation";
@@ -58,9 +57,7 @@ async function getAnswerAndSources(question, history = []) {
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 
@@ -118,9 +115,9 @@ client.on("messageCreate", async (message) => {
     const responseJSON = await response.json();
 
     const answer = await responseJSON["answer"]["text"];
-    const sources = await responseJSON["sources"]
-      .map((source) => source["link"])
-      .join("\n");
+    const sources = await responseJSON["sources"].map(
+      (source) => source["link"]
+    );
 
     history.push({
       prompt: formattedMessage.trim(),
@@ -129,18 +126,31 @@ client.on("messageCreate", async (message) => {
     });
     historyMap.set(threadId, history); // Use thread ID to store history instead of channel ID
 
-    if (message.channel.isThread()) {
-      await message.reply(
-        `${message.author}\n\n${answer}`
-      );
-      if (sources) {
-        await message.reply(`Sources:\n${sources}`);
+    const answersList = [];
+    let tempString = "";
+    let answerIndex = 0;
+
+    const splittedAnswers = answer.split("\n");
+
+    while (answerIndex < splittedAnswers.length) {
+      // update 1999 to (n-1) where n is discords per message limit
+      while (tempString.length + splittedAnswers[answerIndex].length <= 1999) {
+        tempString += splittedAnswers[answerIndex++] + "\n";
+        if (answerIndex === splittedAnswers.length) break;
       }
-    } else {
-      await thread.send(`${message.author}\n\n${answer}\n`);
-      if (sources) {
-        await thread.send(`\n\n- Verified Sources:\n${sources}`);
-      }
+      answersList.push(tempString);
+      tempString = "";
+    }
+
+    const firstMessage = `${message.author}\n\n${answersList[0]}`;
+    if (message.channel.isThread()) await message.reply(firstMessage);
+    else await thread.send(firstMessage);
+
+    for (let i = 1; i < answersList.length; i++)
+      await thread.send(answersList[i]);
+
+    if (sources) {
+      await thread.send(`\n\nVerified Sources:\n- ${sources.join("\n- ")}`);
     }
   } catch (error) {
     console.log(error);
